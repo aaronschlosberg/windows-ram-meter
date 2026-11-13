@@ -2,7 +2,7 @@
 """
 Simple RAM Meter - System Tray Utility
 Shows RAM usage percentage in the system tray with a dial-like icon.
-Right-click for menu: refresh, quit.
+Hover for detailed tooltip. Right-click for menu: quit.
 """
 
 import psutil
@@ -34,9 +34,12 @@ def create_image(usage):
 
 def update_icon(icon):
     while True:
-        usage = psutil.virtual_memory().percent
+        mem = psutil.virtual_memory()
+        usage = mem.percent
+        used_gb = mem.used / (1024 ** 3)
+        total_gb = mem.total / (1024 ** 3)
         icon.icon = create_image(usage)
-        icon.title = f"RAM: {usage:.1f}%"
+        icon.title = f"RAM: {usage:.1f}% | {used_gb:.1f}/{total_gb:.1f} GB"
         time.sleep(2)
 
 def on_quit(icon, item):
