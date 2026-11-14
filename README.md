@@ -1,6 +1,10 @@
 # Windows RAM Meter
 
-Simple system tray RAM usage meter for Windows. Shows a dial icon with percentage (green <70%, yellow <90%, red otherwise). Updates every 2 seconds. Right-click tray icon to quit.
+Simple system tray RAM usage meter for Windows. Shows a dial icon with percentage (green <70%, yellow <90%, red otherwise). Updates every 2 seconds (toggleable to 1s). Right-click for menu.
+
+**New features:**
+- Tooltip shows used/total, available, and swap usage
+- Right-click menu: Open Task Manager, top 3 processes by RAM, refresh interval toggle, quit
 
 ## Requirements
 - Windows
