@@ -6,15 +6,11 @@ echo   Windows RAM Meter - Installer
 echo ========================================
 echo.
 
-REM --- Find Python ---
+REM --- Find real Python (skip Microsoft Store stub) ---
 set "PYTHON="
 set "PYTHONW="
 
-REM Try PATH first
-where python >nul 2>&1 && set "PYTHON=python" && set "PYTHONW=pythonw"
-if defined PYTHON goto :found
-
-REM Common install locations
+REM Check common real install locations first
 for %%P in (
     "%LocalAppData%\Programs\Python\Python313\python.exe"
     "%LocalAppData%\Programs\Python\Python312\python.exe"
@@ -27,20 +23,34 @@ for %%P in (
     "%ProgramFiles(x86)%\Python313\python.exe"
     "%ProgramFiles(x86)%\Python312\python.exe"
 ) do (
-    if exist %%P (
-        set "PYTHON=%%P"
+    if exist "%%~P" (
+        set "PYTHON=%%~P"
         set "PYTHONW=%%~dpPpythonw.exe"
         goto :found
     )
 )
 
-echo Python was not found in PATH or common install locations.
+REM Fallback: try py launcher (often works even when python doesn't)
+where py >nul 2>&1
+if not errorlevel 1 (
+    for /f "delims=" %%V in ('py -3 -c "import sys; print(sys.executable)" 2^>nul') do (
+        set "PYTHON=%%V"
+        set "PYTHONW=%%~dpVpythonw.exe"
+        goto :found
+    )
+)
+
+echo Real Python was not found.
 echo.
-echo Please install Python 3.10+ from:
-echo https://www.python.org/downloads/
+echo The error you saw is usually the Microsoft Store alias.
 echo.
-echo IMPORTANT: Check the box "Add python.exe to PATH" during install.
-echo Then close this window, reopen it, and run install.bat again.
+echo Fix options:
+echo 1. Install Python from https://www.python.org/downloads/
+echo    (check "Add python.exe to PATH" during install)
+echo.
+echo 2. Or disable the Store aliases:
+echo    Settings ^> Apps ^> Advanced app settings ^> App execution aliases
+echo    Turn OFF "python.exe" and "python3.exe"
 echo.
 pause
 exit /b 1
@@ -49,8 +59,8 @@ exit /b 1
 echo Found Python: !PYTHON!
 echo.
 
-echo Installing dependencies (psutil, pystray, pillow)...
-"!PYTHON!" -m pip install --upgrade pip
+echo Installing dependencies...
+"!PYTHON!" -m pip install --upgrade pip -q
 "!PYTHON!" -m pip install -r requirements.txt
 if errorlevel 1 (
     echo.
@@ -60,7 +70,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo Creating Startup shortcut (no console window)...
+echo Creating Startup shortcut...
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 
@@ -76,8 +86,8 @@ echo.
 echo ========================================
 echo   Done.
 echo ========================================
-echo The RAM Meter will start automatically on next login.
-echo You can also run it now with:
+echo RAM Meter will start on next login.
+echo Run now with:
 echo   "!PYTHONW!" "%SCRIPT_DIR%\ram_meter.py"
 echo.
 pause
