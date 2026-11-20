@@ -1,16 +1,15 @@
 @echo off
 setlocal enabledelayedexpansion
+title Windows RAM Meter - Full Installer
 
 echo ========================================
-echo   Windows RAM Meter - Installer
+echo   Windows RAM Meter - Full Installer
 echo ========================================
+echo This will install Python (if needed) and the RAM Meter.
 echo.
 
-REM --- Find real Python (skip Microsoft Store stub) ---
+REM Check for real Python
 set "PYTHON="
-set "PYTHONW="
-
-REM Check common real install locations first
 for %%P in (
     "%LocalAppData%\Programs\Python\Python313\python.exe"
     "%LocalAppData%\Programs\Python\Python312\python.exe"
@@ -20,50 +19,51 @@ for %%P in (
     "%ProgramFiles%\Python312\python.exe"
     "%ProgramFiles%\Python311\python.exe"
     "%ProgramFiles%\Python310\python.exe"
-    "%ProgramFiles(x86)%\Python313\python.exe"
-    "%ProgramFiles(x86)%\Python312\python.exe"
 ) do (
     if exist "%%~P" (
         set "PYTHON=%%~P"
-        set "PYTHONW=%%~dpPpythonw.exe"
-        goto :found
+        goto :havepython
     )
 )
 
-REM Fallback: try py launcher (often works even when python doesn't)
-where py >nul 2>&1
-if not errorlevel 1 (
-    for /f "delims=" %%V in ('py -3 -c "import sys; print(sys.executable)" 2^>nul') do (
-        set "PYTHON=%%V"
-        set "PYTHONW=%%~dpVpythonw.exe"
-        goto :found
-    )
-)
-
-echo Real Python was not found.
-echo.
-echo The error you saw is usually the Microsoft Store alias.
-echo.
-echo Fix options:
-echo 1. Install Python from https://www.python.org/downloads/
-echo    (check "Add python.exe to PATH" during install)
-echo.
-echo 2. Or disable the Store aliases:
-echo    Settings ^> Apps ^> Advanced app settings ^> App execution aliases
-echo    Turn OFF "python.exe" and "python3.exe"
-echo.
-pause
-exit /b 1
-
-:found
-echo Found Python: !PYTHON!
+echo Python not found. Downloading and installing Python 3.12...
 echo.
 
-echo Installing dependencies...
-"!PYTHON!" -m pip install --upgrade pip -q
-"!PYTHON!" -m pip install -r requirements.txt
+set "PY_INSTALLER=%TEMP%\python-3.12.7-amd64.exe"
+powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe' -OutFile '%PY_INSTALLER%'"
 if errorlevel 1 (
-    echo.
+    echo Download failed. Check your internet connection.
+    pause
+    exit /b 1
+)
+
+echo Installing Python (this may take a minute)...
+"%PY_INSTALLER%" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+if errorlevel 1 (
+    echo Python install failed.
+    pause
+    exit /b 1
+)
+
+REM Refresh PATH for this session
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%i;%PATH%"
+
+set "PYTHON=%LocalAppData%\Programs\Python\Python312\python.exe"
+if not exist "%PYTHON%" (
+    echo Python installed but not found at expected path.
+    echo Please close this window, open a new Command Prompt, and run install.bat again.
+    pause
+    exit /b 1
+)
+
+:havepython
+echo Found Python: %PYTHON%
+echo.
+
+echo Installing RAM Meter dependencies...
+"%PYTHON%" -m pip install --upgrade pip -q
+"%PYTHON%" -m pip install psutil pystray pillow
+if errorlevel 1 (
     echo Failed to install packages.
     pause
     exit /b 1
@@ -73,11 +73,13 @@ echo.
 echo Creating Startup shortcut...
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+set "PYTHONW=%LocalAppData%\Programs\Python\Python312\pythonw.exe"
+if not exist "%PYTHONW%" set "PYTHONW=%PYTHON:python.exe=pythonw.exe%"
 
 powershell -NoProfile -Command ^
   "$ws = New-Object -ComObject WScript.Shell; " ^
   "$s = $ws.CreateShortcut([Environment]::GetFolderPath('Startup') + '\RAM Meter.lnk'); " ^
-  "$s.TargetPath = '!PYTHONW!'; " ^
+  "$s.TargetPath = '%PYTHONW%'; " ^
   "$s.Arguments = '\"%SCRIPT_DIR%\ram_meter.py\"'; " ^
   "$s.WorkingDirectory = '%SCRIPT_DIR%'; " ^
   "$s.Save()"
@@ -86,8 +88,9 @@ echo.
 echo ========================================
 echo   Done.
 echo ========================================
-echo RAM Meter will start on next login.
-echo Run now with:
-echo   "!PYTHONW!" "%SCRIPT_DIR%\ram_meter.py"
+echo RAM Meter is installed and will start on next login.
+echo.
+echo To run it now, close this window and double-click:
+echo   %PYTHONW% "%SCRIPT_DIR%\ram_meter.py"
 echo.
 pause
